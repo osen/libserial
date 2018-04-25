@@ -8,8 +8,9 @@
 
 int main()
 {
-  /* O_RDWR - Open for reading and writing                            */
-  /* O_NOCTTY - No terminal will control the process opening the port */
+  /* O_RDWR - Open for reading and writing                              */
+  /* O_NOCTTY - No terminal will control the process opening the port   */
+  /* O_NDELAY - Enable non-blocking for raw mode when VTIME is set to 0 */
   int fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
 
   if(fd == -1)
