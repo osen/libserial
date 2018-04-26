@@ -1,17 +1,34 @@
+#include "Port.h"
+
 #include <fcntl.h>   /* File Control Definitions           */
 #include <termios.h> /* POSIX Terminal Control Definitions */
 #include <unistd.h>  /* UNIX Standard Definitions          */
 #include <errno.h>   /* ERROR Number Definitions           */
 
-#include <string>
-#include <iostream>
-
-int main()
+namespace serial
 {
+
+Port::Port() : fd(-1) { }
+
+Port::~Port()
+{
+  if(fd != -1)
+  {
+    close();
+  }
+}
+
+void Port::open(std::string path)
+{
+  if(fd != -1)
+  {
+    throw std::exception();
+  }
+
   /* O_RDWR - Open for reading and writing                              */
   /* O_NOCTTY - No terminal will control the process opening the port   */
   /* O_NDELAY - Enable non-blocking for raw mode when VTIME is set to 0 */
-  int fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
+  fd = ::open(path.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
 
   if(fd == -1)
   {
@@ -40,7 +57,7 @@ int main()
   settings.c_cflag |= CREAD | CLOCAL;
 
   settings.c_cc[VMIN]  = 10; /* Read 1 characters */
-  settings.c_cc[VTIME] = 0; /* Wait indefinitely */ 
+  settings.c_cc[VTIME] = 0;  /* Wait indefinitely */ 
 
   /* Local settings for raw mode */
 
@@ -54,37 +71,91 @@ int main()
 
   /* Apply settings to serial port now */
   tcsetattr(fd, TCSANOW, &settings);
+}
 
-  /* Write buffer */
-  char writeBuffer[] = "Abc"; 
-  int bytesWritten = write(fd, writeBuffer, sizeof(writeBuffer));
+void Port::send(std::string message)
+{
+  std::vector<unsigned char> data;
 
-  if(bytesWritten != sizeof(writeBuffer))
+  for(size_t i = 0; i < message.length(); i++)
+  {
+    data.push_back(message.at(i));
+  }
+
+  send(data);
+}
+
+void Port::send(std::vector<unsigned char>& data)
+{
+  if(fd == -1)
   {
     throw std::exception();
   }
 
-  sleep(2);
+  size_t dataSize = sizeof(unsigned char) * data.size();
+  int bytesWritten = write(fd, &data[0], dataSize);
 
-  /* Read buffer */
-  printf("Reading...\n");
+  if(bytesWritten != dataSize)
+  {
+    throw std::exception();
+  }
+}
+
+std::string Port::receive()
+{
+  std::vector<unsigned char> data;
+
+  receive(data);
+  std::string rtn;
+
+  for(size_t i = 0; i < data.size(); i++)
+  {
+    if(data.at(i) == '\0') break;
+
+    rtn = rtn + (char)data.at(i);
+  }
+
+  return rtn;
+}
+
+void Port::receive(std::vector<unsigned char>& data)
+{
+  if(fd == -1)
+  {
+    throw std::exception();
+  }
+
   char readBuffer[32];
   int bytesRead = read(fd, &readBuffer, 31);
 
   if(bytesRead == 0)
   {
-    std::cout << "Disconnected" << std::endl;
+    close();
+
+    return;
   }
   else if(bytesRead == -1)
   {
     throw std::exception();
   }
 
-  readBuffer[bytesRead] = '\0';
+  data.clear();
 
-  printf("Received: %i: %s\n", bytesRead, readBuffer);
+  for(size_t i = 0; i < bytesRead; i++)
+  {
+    data.push_back(readBuffer[i]);
+  }
+}
 
-  close(fd);
+void Port::close()
+{
+  if(fd == -1)
+  {
+    throw std::exception();
+  }
 
-  return 0;
+  ::close(fd);
+  fd = -1;
+}
+
 }
