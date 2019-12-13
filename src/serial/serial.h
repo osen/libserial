@@ -1,6 +1,6 @@
 #ifndef SERIAL_SERIAL_H
 #define SERIAL_SERIAL_H
 
-#include "Port.h"
+#include "Device.h"
 
 #endif
