@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 
 ref(SeDevice) SeDeviceOpen(char *path)
 {
@@ -47,20 +48,63 @@ ref(SeDevice) SeDeviceOpen(char *path)
 
 int SeDeviceReady(ref(SeDevice) ctx, int mode, int timeout)
 {
+  fd_set readfds = {0};
+  fd_set writefds = {0};
+  struct timeval tv = {0};
   int rc = 0;
   int bytes = 0;
 
-  rc = ioctl(_(ctx).fd, FIONREAD, &bytes);
+  tv.tv_sec = timeout / 1000;
+  tv.tv_usec = timeout % 1000;
 
-  if(rc == -1)
+  FD_ZERO(&readfds);
+  FD_ZERO(&writefds);
+
+  if(mode == SE_MODE_R || mode == SE_MODE_RW)
   {
-    printf("Error: Failed to enumerate waiting bytes\n");
+    FD_SET(_(ctx).fd, &readfds);
+  }
+
+  if(mode == SE_MODE_W || mode == SE_MODE_RW)
+  {
+    FD_SET(_(ctx).fd, &writefds);
+  }
+
+  if(select(_(ctx).fd + 1, &readfds, &writefds, NULL,
+    (timeout >= 0 ? &tv : NULL)) == -1)
+  {
+    printf("Error: Select failed\n");
     abort();
   }
 
-  if(bytes > 0)
+  if(mode == SE_MODE_R || mode == SE_MODE_RW)
   {
-    return 1;
+    if(FD_ISSET(_(ctx).fd, &readfds))
+    {
+      rc = ioctl(_(ctx).fd, FIONREAD, &bytes);
+
+      if(rc == -1)
+      {
+        printf("Error: Failed to enumerate waiting bytes\n");
+        abort();
+      }
+
+      if(bytes > 0)
+      {
+        return 1;
+      }
+
+      printf("Error: Serial connection closed?\n");
+      abort();
+    }
+  }
+
+  if(mode == SE_MODE_R || mode == SE_MODE_RW)
+  {
+    if(FD_ISSET(_(ctx).fd, &writefds))
+    {
+      return 1;
+    }
   }
 
   return 0;

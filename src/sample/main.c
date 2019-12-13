@@ -36,6 +36,10 @@ int main()
 
       count++;
     }
+    else
+    {
+      printf("Not ready\n");
+    }
 
     if(count > 5)
     {
