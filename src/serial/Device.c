@@ -140,10 +140,13 @@ void SeDeviceWrite(ref(SeDevice) ctx, vector(unsigned char) buffer)
 
   n = write(_(ctx).fd, &vector_at(buffer, 0), vector_size(buffer));
 
-  if(n > 0)
+  if(n < 1)
   {
-    vector_erase(buffer, 0, n);
+    printf("Error: Failed to send\n");
+    abort();
   }
+
+  vector_erase(buffer, 0, n);
 }
 
 void SeDeviceClose(ref(SeDevice) ctx)
