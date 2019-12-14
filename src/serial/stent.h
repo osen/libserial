@@ -318,6 +318,7 @@ void sstream_str_cstr(ref(sstream) ctx, char *str);
 void sstream_append(ref(sstream) ctx, ref(sstream) str);
 void sstream_append_char(ref(sstream) ctx, unsigned char c);
 void sstream_append_cstr(ref(sstream) ctx, char *str);
+void sstream_append_int(ref(sstream) ctx, int val);
 
 void sstream_split(ref(sstream) ctx, unsigned char c, vector(ref(sstream)) out);
 char *sstream_cstr(ref(sstream) ctx);
@@ -351,6 +352,7 @@ void ifstream_getline(ref(ifstream) ctx, ref(sstream) out);
  *****************************************************************************/
 
 #include <stdio.h>
+#include <math.h>
 
 #ifdef STENT_ENABLE
 
@@ -861,6 +863,14 @@ void sstream_append_char(ref(sstream) ctx, unsigned char c)
 {
   vector_at(_(ctx).data, vector_size(_(ctx).data) - 1) = c;
   vector_push_back(_(ctx).data, '\0');
+}
+
+void sstream_append_int(ref(sstream) ctx, int val)
+{
+  char str[(CHAR_BIT * sizeof(int) - 1) / 3 + 2] = {0};
+
+  sprintf(str, "%i", val);
+  sstream_append_cstr(ctx, str);
 }
 
 void sstream_append_cstr(ref(sstream) ctx, char *str)

@@ -99,7 +99,7 @@ int SeDeviceReady(ref(SeDevice) ctx, int mode, int timeout)
     }
   }
 
-  if(mode == SE_MODE_R || mode == SE_MODE_RW)
+  if(mode == SE_MODE_W || mode == SE_MODE_RW)
   {
     if(FD_ISSET(_(ctx).fd, &writefds))
     {

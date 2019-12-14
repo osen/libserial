@@ -5,10 +5,17 @@
 #include <time.h>
 #include <stdio.h>
 
+#define SE_FRAME_BEGIN '^'
+#define SE_FRAME_END '$'
+#define SE_FRAME_SEP ','
+
+#define SE_TYPE_INITIAL '!'
+#define SE_TYPE_REPEAT '.'
+
 struct SeFrame
 {
   size_t id;
-  int type;
+  unsigned char type;
   vector(unsigned char) payload;
   ref(sstream) hash;
   time_t timestamp;
@@ -42,6 +49,56 @@ struct SeStream
   vector(unsigned char) incoming;
 };
 
+void _SeStreamAddFrame(ref(SeStream) ctx, ref(SeFrame) frame)
+{
+  ref(sstream) str = NULL;
+  size_t si = 0;
+
+  vector_push_back(_(ctx).outgoing, SE_FRAME_BEGIN);
+  vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
+  str = sstream_new();
+  sstream_append_int(str, _(frame).id);
+
+  for(si = 0; si < sstream_length(str); si++)
+  {
+    vector_push_back(_(ctx).outgoing, sstream_at(str, si));
+  }
+
+  vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
+  vector_push_back(_(ctx).outgoing, _(frame).type);
+
+  vector_insert(_(ctx).outgoing, vector_size(_(ctx).outgoing),
+    _(frame).payload, 0, vector_size(_(frame).payload));
+
+  vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
+
+  for(si = 0; si < sstream_length(_(frame).hash); si++)
+  {
+    vector_push_back(_(ctx).outgoing, sstream_at(_(frame).hash, si));
+  }
+
+  vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
+  vector_push_back(_(ctx).outgoing, SE_FRAME_END);
+  sstream_delete(str);
+
+  _(frame).type = SE_TYPE_REPEAT;
+
+  /*
+   * ^,34,!,HELO,HASH,$
+   */
+}
+
+void _SeStreamFlush(ref(SeStream) ctx)
+{
+  while(SeDeviceReady(_(ctx).dev, SE_MODE_W, 0) &&
+    vector_size(_(ctx).outgoing) > 0)
+  {
+    printf("Before: %i\n", (int)vector_size(_(ctx).outgoing));
+    SeDeviceWrite(_(ctx).dev, _(ctx).outgoing);
+    printf("After: %i\n", (int)vector_size(_(ctx).outgoing));
+  }
+}
+
 void _SeStreamProcess(ref(SeStream) ctx)
 {
   ref(SeFrame) frame = NULL;
@@ -57,11 +114,11 @@ void _SeStreamProcess(ref(SeStream) ctx)
     if(_(frame).timestamp <= now)
     {
       _(frame).timestamp += SE_PACKET_TIMEOUT;
-      printf("Send\n");
-      // Add frame to outgoing (function?)
-      // Write as much of outgoing as possible
+      _SeStreamAddFrame(ctx, frame);
     }
   }
+
+  _SeStreamFlush(ctx);
 }
 
 ref(SeStream) SeStreamOpen(char *path)
@@ -90,7 +147,7 @@ void SeStreamWrite(ref(SeStream) ctx, vector(unsigned char) buffer)
   vector_insert(_(frame).payload, 0, buffer, 0, vector_size(buffer));
   sstream_str_cstr(_(frame).hash, "ABC");
   _(frame).id = _(ctx).outId++;
-  _(frame).type = 1;
+  _(frame).type = SE_TYPE_INITIAL;
   _(frame).timestamp = time(NULL);
   vector_push_back(_(ctx).frames, frame);
 
