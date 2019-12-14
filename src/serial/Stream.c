@@ -66,6 +66,7 @@ void _SeStreamAddFrame(ref(SeStream) ctx, ref(SeFrame) frame)
 
   vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
   vector_push_back(_(ctx).outgoing, _(frame).type);
+  vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
 
   vector_insert(_(ctx).outgoing, vector_size(_(ctx).outgoing),
     _(frame).payload, 0, vector_size(_(frame).payload));
@@ -93,9 +94,24 @@ void _SeStreamFlush(ref(SeStream) ctx)
   while(SeDeviceReady(_(ctx).dev, SE_MODE_W, 0) &&
     vector_size(_(ctx).outgoing) > 0)
   {
-    printf("Before: %i\n", (int)vector_size(_(ctx).outgoing));
+/*
+    {
+      size_t i = 0;
+
+      printf("%i [", (int)vector_size(_(ctx).outgoing));
+
+      for(i = 0; i < vector_size(_(ctx).outgoing); i++)
+      {
+        printf("%c", vector_at(_(ctx).outgoing, i));
+      }
+
+      printf("]\n");
+    }
+*/
+
+    //printf("Before: %i\n", (int)vector_size(_(ctx).outgoing));
     SeDeviceWrite(_(ctx).dev, _(ctx).outgoing);
-    printf("After: %i\n", (int)vector_size(_(ctx).outgoing));
+    //printf("After: %i\n", (int)vector_size(_(ctx).outgoing));
   }
 }
 
