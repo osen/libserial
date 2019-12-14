@@ -8,6 +8,7 @@ int main()
   ref(SeStream) stream = NULL;
   vector(unsigned char) outgoing = NULL;
   vector(unsigned char) incoming = NULL;
+  int count = 0;
 
   stream = SeStreamOpen("/dev/cuaU0");
   outgoing = vector_new(unsigned char);
@@ -34,10 +35,15 @@ int main()
     }
     else
     {
-      printf("No bytes received\n");
+      //printf("No bytes received\n");
     }
 
-    //break;
+    count++;
+
+    if(count > 15)
+    {
+      break;
+    }
   }
 
   SeStreamClose(stream);
