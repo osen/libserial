@@ -115,7 +115,12 @@ void _SeStreamFlush(ref(SeStream) ctx)
   }
 }
 
-void _SeStreamProcess(ref(SeStream) ctx)
+void _SeStreamProcessIncoming(ref(SeStream) ctx)
+{
+
+}
+
+void _SeStreamProcessOutgoing(ref(SeStream) ctx)
 {
   ref(SeFrame) frame = NULL;
   size_t fi = 0;
@@ -129,11 +134,16 @@ void _SeStreamProcess(ref(SeStream) ctx)
 
     if(_(frame).timestamp <= now)
     {
-      _(frame).timestamp += SE_PACKET_TIMEOUT;
+      _(frame).timestamp = now + SE_PACKET_TIMEOUT;
       _SeStreamAddFrame(ctx, frame);
     }
   }
+}
 
+void _SeStreamProcess(ref(SeStream) ctx)
+{
+  _SeStreamProcessIncoming(ctx);
+  _SeStreamProcessOutgoing(ctx);
   _SeStreamFlush(ctx);
 }
 
@@ -152,7 +162,7 @@ ref(SeStream) SeStreamOpen(char *path)
 
 void SeStreamRead(ref(SeStream) ctx, vector(unsigned char) buffer)
 {
-
+  _SeStreamProcess(ctx);
 }
 
 void SeStreamWrite(ref(SeStream) ctx, vector(unsigned char) buffer)
