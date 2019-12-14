@@ -5,12 +5,26 @@
 #include <time.h>
 #include <stdio.h>
 
-#define SE_FRAME_BEGIN '^'
+//#define SE_FRAME_BEGIN '^'
 #define SE_FRAME_END '$'
 #define SE_FRAME_SEP ','
 
 #define SE_TYPE_INITIAL '!'
 #define SE_TYPE_REPEAT '.'
+
+void _SeDebugVector(vector(unsigned char) in)
+{
+  size_t i = 0;
+
+  printf("%i [", (int)vector_size(in));
+
+  for(i = 0; i < vector_size(in); i++)
+  {
+    printf("%c", vector_at(in, i));
+  }
+
+  printf("]\n");
+}
 
 struct SeFrame
 {
@@ -30,6 +44,11 @@ ref(SeFrame) SeFrameCreate()
   _(rtn).hash = sstream_new();
 
   return rtn;
+}
+
+void _SeFrameUpdateHash(ref(SeFrame) ctx)
+{
+  sstream_str_cstr(_(ctx).hash, "ABC");
 }
 
 void SeFrameDestroy(ref(SeFrame) ctx)
@@ -54,8 +73,8 @@ void _SeStreamAddFrame(ref(SeStream) ctx, ref(SeFrame) frame)
   ref(sstream) str = NULL;
   size_t si = 0;
 
-  vector_push_back(_(ctx).outgoing, SE_FRAME_BEGIN);
-  vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
+  //vector_push_back(_(ctx).outgoing, SE_FRAME_BEGIN);
+  //vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
   str = sstream_new();
   sstream_append_int(str, _(frame).id);
 
@@ -72,6 +91,7 @@ void _SeStreamAddFrame(ref(SeStream) ctx, ref(SeFrame) frame)
     _(frame).payload, 0, vector_size(_(frame).payload));
 
   vector_push_back(_(ctx).outgoing, SE_FRAME_SEP);
+  _SeFrameUpdateHash(frame);
 
   for(si = 0; si < sstream_length(_(frame).hash); si++)
   {
@@ -94,21 +114,7 @@ void _SeStreamFlush(ref(SeStream) ctx)
   while(SeDeviceReady(_(ctx).dev, SE_MODE_W, 0) &&
     vector_size(_(ctx).outgoing) > 0)
   {
-/*
-    {
-      size_t i = 0;
-
-      printf("%i [", (int)vector_size(_(ctx).outgoing));
-
-      for(i = 0; i < vector_size(_(ctx).outgoing); i++)
-      {
-        printf("%c", vector_at(_(ctx).outgoing, i));
-      }
-
-      printf("]\n");
-    }
-*/
-
+    //_SeDebugVector(_(ctx).outgoing);
     //printf("Before: %i\n", (int)vector_size(_(ctx).outgoing));
     SeDeviceWrite(_(ctx).dev, _(ctx).outgoing);
     //printf("After: %i\n", (int)vector_size(_(ctx).outgoing));
@@ -117,7 +123,20 @@ void _SeStreamFlush(ref(SeStream) ctx)
 
 void _SeStreamProcessIncoming(ref(SeStream) ctx)
 {
+  vector(unsigned char) buffer = NULL;
 
+  buffer = vector_new(unsigned char);
+
+  while(SeDeviceReady(_(ctx).dev, SE_MODE_R, 0))
+  {
+    vector_resize(buffer, 1024);
+    SeDeviceRead(_(ctx).dev, buffer);
+
+    vector_insert(_(ctx).incoming, vector_size(_(ctx).incoming),
+      buffer, 0, vector_size(buffer));
+  }
+
+  _SeDebugVector(_(ctx).incoming);
 }
 
 void _SeStreamProcessOutgoing(ref(SeStream) ctx)
@@ -171,7 +190,6 @@ void SeStreamWrite(ref(SeStream) ctx, vector(unsigned char) buffer)
 
   frame = SeFrameCreate();
   vector_insert(_(frame).payload, 0, buffer, 0, vector_size(buffer));
-  sstream_str_cstr(_(frame).hash, "ABC");
   _(frame).id = _(ctx).outId++;
   _(frame).type = SE_TYPE_INITIAL;
   _(frame).timestamp = time(NULL);
