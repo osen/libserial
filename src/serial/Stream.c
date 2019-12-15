@@ -110,14 +110,13 @@ void _SeStreamAddFrame(ref(SeStream) ctx, ref(SeFrame) frame)
    */
 }
 
-ref(SeFrame) _SeStreamRetrieveFrame(ref(SeStream) ctx)
+int _SeStreamRetrieveFrame(ref(SeStream) ctx, ref(SeFrame) frame)
 {
   vector(unsigned char) incoming = NULL;
   vector(unsigned char) packet = NULL;
   size_t ii = 0;
-  ref(SeFrame) rtn = NULL;
   int fail = 0;
-  vector(unsigned char) idSeg = NULL;
+  ref(sstream) idSeg = NULL;
   vector(unsigned char) payloadSeg = NULL;
   vector(unsigned char) hashSeg = NULL;
 
@@ -136,17 +135,15 @@ ref(SeFrame) _SeStreamRetrieveFrame(ref(SeStream) ctx)
 
   if(packet == NULL)
   {
-    return NULL;
+    return 0;
   }
 
   /*
    * <id>,<type>,<payload>,<hash>$
    */
 
-  //_SeDebugVector(packet);
-
-  rtn = SeFrameCreate();
-  idSeg = vector_new(unsigned char);
+  _(frame).type = SE_TYPE_INVALID;
+  idSeg = sstream_new();
 
   /*
    * Store up to first ',' as the id segment.
@@ -161,18 +158,20 @@ ref(SeFrame) _SeStreamRetrieveFrame(ref(SeStream) ctx)
     }
     else
     {
-      vector_push_back(idSeg, vector_at(packet, ii));
+      sstream_append_char(idSeg, vector_at(packet, ii));
     }
   }
 
   /*
    * No id segment found.
    */
-  if(vector_size(idSeg) < 1)
+  if(sstream_length(idSeg) < 1)
   {
     fail = 1;
     goto end;
   }
+
+  _(frame).id = atoi(sstream_cstr(idSeg));
 
   /*
    * Packet not large enough to store the type and sep.
@@ -186,10 +185,10 @@ ref(SeFrame) _SeStreamRetrieveFrame(ref(SeStream) ctx)
   /*
    * Store the type and remove both it and sep.
    */
-  _(rtn).type = vector_at(packet, 0);
+  _(frame).type = vector_at(packet, 0);
   vector_erase(packet, 0, 2);
 
-  payloadSeg = vector_new(unsigned char);
+  vector_resize(_(frame).payload, 0);
 
   /*
    * Store up to next ',' as the payload segment.
@@ -204,7 +203,7 @@ ref(SeFrame) _SeStreamRetrieveFrame(ref(SeStream) ctx)
     }
     else
     {
-      vector_push_back(payloadSeg, vector_at(packet, ii));
+      vector_push_back(_(frame).payload, vector_at(packet, ii));
     }
   }
 
@@ -236,18 +235,10 @@ ref(SeFrame) _SeStreamRetrieveFrame(ref(SeStream) ctx)
     goto end;
   }
 
-  //printf("Payload and hash obtained\n");
-  _SeDebugVector(payloadSeg);
-
 end:
   if(idSeg)
   {
-    vector_delete(idSeg);
-  }
-
-  if(payloadSeg)
-  {
-    vector_delete(payloadSeg);
+    sstream_delete(idSeg);
   }
 
   if(hashSeg)
@@ -259,10 +250,10 @@ end:
 
   if(fail)
   {
-    _(rtn).type = SE_TYPE_INVALID;
+    _(frame).type = SE_TYPE_INVALID;
   }
 
-  return rtn;
+  return 1;
 }
 
 void _SeStreamFlush(ref(SeStream) ctx)
@@ -270,11 +261,7 @@ void _SeStreamFlush(ref(SeStream) ctx)
   while(SeDeviceReady(_(ctx).dev, SE_MODE_W, 0) &&
     vector_size(_(ctx).outgoing) > 0)
   {
-    //_SeDebugVector(_(ctx).outgoing);
-    //printf("Before: %i\n", (int)vector_size(_(ctx).outgoing));
     SeDeviceWrite(_(ctx).dev, _(ctx).outgoing);
-    //_SeDebugVector(_(ctx).outgoing);
-    //printf("After: %i\n", (int)vector_size(_(ctx).outgoing));
   }
 }
 
@@ -296,24 +283,28 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
   }
 
   vector_delete(buffer);
-  //_SeDebugVector(_(ctx).incoming);
+  frame = SeFrameCreate();
 
-  while(1)
+  while(_SeStreamRetrieveFrame(ctx, frame))
   {
-    frame = _SeStreamRetrieveFrame(ctx);
-
-    if(!frame)
-    {
-      break;
-    }
-
     if(_(frame).type == SE_TYPE_INVALID)
     {
       printf("Invalid frame\n");
     }
-
-    SeFrameDestroy(frame);
+    else if(_(frame).type == SE_TYPE_INITIAL ||
+      _(frame).type == SE_TYPE_REPEAT)
+    {
+      printf("id: %i ", (int)_(frame).id);
+      _SeDebugVector(_(frame).payload);
+    }
+    else
+    {
+      printf("Error: Unknown frame type\n");
+      abort();
+    }
   }
+
+  SeFrameDestroy(frame);
 }
 
 void _SeStreamProcessOutgoing(ref(SeStream) ctx)

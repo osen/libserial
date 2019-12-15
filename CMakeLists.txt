@@ -9,6 +9,7 @@ add_library(serial
   src/serial/Device.c
   src/serial/Base64.c
   src/serial/Stream.c
+  src/serial/sha1.c
 )
 target_link_libraries(serial)
 
