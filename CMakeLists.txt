@@ -33,3 +33,8 @@ add_executable(flood
   src/tests/flood/main.c
 )
 target_link_libraries(flood serial)
+
+add_executable(drip
+  src/tests/drip/main.c
+)
+target_link_libraries(drip serial)

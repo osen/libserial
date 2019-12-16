@@ -353,7 +353,7 @@ void ifstream_getline(ref(ifstream) ctx, ref(sstream) out);
  *****************************************************************************/
 
 #include <stdio.h>
-#include <math.h>
+#include <limits.h>
 
 #ifdef STENT_ENABLE
 

@@ -504,6 +504,24 @@ void SeStreamRead(ref(SeStream) ctx, vector(unsigned char) buffer)
   }
 }
 
+void SeStreamWriteCStr(ref(SeStream) ctx, char *str)
+{
+  vector(unsigned char) buffer = NULL;
+  size_t len = strlen(str);
+  size_t ci = 0;
+
+  buffer = vector_new(unsigned char);
+
+  for(ci = 0; ci < len; ci++)
+  {
+    vector_push_back(buffer, str[ci]);
+  }
+
+  SeStreamWrite(ctx, buffer);
+
+  vector_delete(buffer);
+}
+
 void SeStreamWrite(ref(SeStream) ctx, vector(unsigned char) buffer)
 {
   ref(SeFrame) frame = NULL;

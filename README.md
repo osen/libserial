@@ -1,9 +1,9 @@
 # libserial
 
-A library for communicating via RS-232 serial port. It comes with
-two interfaces **Device** for reading and writing to the raw device
-and **Stream** which provides a reliable transmission protocol in
-order to eliminate lost or corrupted packets.
+An ANSI C library for communicating via RS-232 serial port. It comes
+with two interfaces **Device** for reading and writing to the raw
+device and **Stream** which provides a reliable transmission protocol
+in order to eliminate lost or corrupted packets.
 
 The following snippet demonstrates how the **Stream** interface can be used.
 
