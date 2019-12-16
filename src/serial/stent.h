@@ -315,6 +315,7 @@ ref(sstream) sstream_new();
 void sstream_delete(ref(sstream) ctx);
 
 void sstream_str_cstr(ref(sstream) ctx, char *str);
+void sstream_str(ref(sstream) ctx, ref(sstream) str);
 void sstream_append(ref(sstream) ctx, ref(sstream) str);
 void sstream_append_char(ref(sstream) ctx, unsigned char c);
 void sstream_append_cstr(ref(sstream) ctx, char *str);
@@ -950,6 +951,13 @@ void sstream_str_cstr(ref(sstream) ctx, char *str)
   vector_clear(_(ctx).data);
   vector_push_back(_(ctx).data, '\0');
   sstream_append_cstr(ctx, str);
+}
+
+void sstream_str(ref(sstream) ctx, ref(sstream) str)
+{
+  vector_clear(_(ctx).data);
+  vector_push_back(_(ctx).data, '\0');
+  sstream_append(ctx, str);
 }
 
 /***************************************************

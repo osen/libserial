@@ -1,3 +1,28 @@
+#include "Hash.h"
+#include "sha1.h"
+
+#include <stdio.h>
+
+ref(sstream) SeHash(vector(unsigned char) input)
+{
+  SHA1_CTX sha = {0};
+  uint8_t output[41] = {0};
+  char result[21] = {0};
+  ref(sstream) rtn = NULL;
+  size_t ci = 0;
+
+  SHA1(result, &vector_at(input, 0), vector_size(input));
+
+  for(ci = 0; ci < 20; ci++) {
+    sprintf((output + (2 * ci)), "%02x", result[ci]&0xff);
+  }
+
+  rtn = sstream_new();
+  sstream_str_cstr(rtn, output);
+
+  return rtn;
+}
+
 /*
 
 

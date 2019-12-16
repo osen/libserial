@@ -1,6 +1,6 @@
 #include "Stream.h"
 #include "Device.h"
-#include "stent.h"
+#include "Hash.h"
 
 #include <time.h>
 #include <stdio.h>
@@ -50,7 +50,12 @@ ref(SeFrame) SeFrameCreate()
 
 void _SeFrameUpdateHash(ref(SeFrame) ctx)
 {
-  sstream_str_cstr(_(ctx).hash, "ABC");
+  ref(sstream) hash = NULL;
+
+  hash = SeHash(_(ctx).payload);
+  sstream_str(_(ctx).hash, hash);
+
+  sstream_delete(hash);
 }
 
 void SeFrameDestroy(ref(SeFrame) ctx)
@@ -108,6 +113,7 @@ void _SeStreamAddFrame(ref(SeStream) ctx, ref(SeFrame) frame)
   /*
    * 34,!,HELO,HASH$
    */
+  //_SeDebugVector(_(ctx).outgoing);
 }
 
 int _SeStreamRetrieveFrame(ref(SeStream) ctx, ref(SeFrame) frame)
@@ -118,7 +124,7 @@ int _SeStreamRetrieveFrame(ref(SeStream) ctx, ref(SeFrame) frame)
   int fail = 0;
   ref(sstream) idSeg = NULL;
   vector(unsigned char) payloadSeg = NULL;
-  vector(unsigned char) hashSeg = NULL;
+  ref(sstream) hashSeg = NULL;
 
   incoming = _(ctx).incoming;
 
@@ -141,6 +147,7 @@ int _SeStreamRetrieveFrame(ref(SeStream) ctx, ref(SeFrame) frame)
   /*
    * <id>,<type>,<payload>,<hash>$
    */
+  //_SeDebugVector(packet);
 
   _(frame).type = SE_TYPE_INVALID;
   idSeg = sstream_new();
@@ -207,7 +214,7 @@ int _SeStreamRetrieveFrame(ref(SeStream) ctx, ref(SeFrame) frame)
     }
   }
 
-  hashSeg = vector_new(unsigned char);
+  hashSeg = sstream_new();
 
   /*
    * Store up to end '$' as the hash segment.
@@ -222,14 +229,22 @@ int _SeStreamRetrieveFrame(ref(SeStream) ctx, ref(SeFrame) frame)
     }
     else
     {
-      vector_push_back(hashSeg, vector_at(packet, ii));
+      sstream_append_char(hashSeg, vector_at(packet, ii));
     }
   }
 
   /*
    * No hash segment found.
    */
-  if(vector_size(hashSeg) < 1)
+  if(sstream_length(hashSeg) < 1)
+  {
+    fail = 1;
+    goto end;
+  }
+
+  _SeFrameUpdateHash(frame);
+
+  if(strcmp(sstream_cstr(hashSeg), sstream_cstr(_(frame).hash)) != 0)
   {
     fail = 1;
     goto end;
@@ -243,7 +258,7 @@ end:
 
   if(hashSeg)
   {
-    vector_delete(hashSeg);
+    sstream_delete(hashSeg);
   }
 
   vector_delete(packet);
@@ -299,8 +314,8 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
     }
     else
     {
-      printf("Error: Unknown frame type\n");
-      abort();
+      printf("Warning: Unknown frame type\n");
+      //abort();
     }
   }
 

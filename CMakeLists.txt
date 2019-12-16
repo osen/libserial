@@ -10,6 +10,7 @@ add_library(serial
   src/serial/Base64.c
   src/serial/Stream.c
   src/serial/sha1.c
+  src/serial/Hash.c
 )
 target_link_libraries(serial)
 
