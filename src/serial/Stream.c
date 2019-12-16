@@ -397,7 +397,7 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
 
   while(SeDeviceReady(_(ctx).dev, SE_MODE_R, 0))
   {
-    vector_resize(buffer, 1024);
+    vector_resize(buffer, 2048);
     SeDeviceRead(_(ctx).dev, buffer);
 
     vector_insert(_(ctx).incoming, vector_size(_(ctx).incoming),

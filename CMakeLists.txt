@@ -28,3 +28,8 @@ add_executable(stream
   src/tests/stream/main.c
 )
 target_link_libraries(stream serial)
+
+add_executable(flood
+  src/tests/flood/main.c
+)
+target_link_libraries(flood serial)

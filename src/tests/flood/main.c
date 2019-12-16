@@ -10,18 +10,29 @@ int main()
   vector(unsigned char) incoming = NULL;
   char tail = 'A';
   int count = 0;
-  int received = 0;
 
   stream = SeStreamOpen("/dev/cuaU0");
   outgoing = vector_new(unsigned char);
   incoming = vector_new(unsigned char);
 
-  vector_push_back(outgoing, 'H');
-  SeStreamWrite(stream, outgoing);
-
   while(1)
   {
-    received = 0;
+    vector_clear(outgoing);
+    vector_push_back(outgoing, 'H');
+    vector_push_back(outgoing, 'E');
+    vector_push_back(outgoing, 'L');
+    vector_push_back(outgoing, 'O');
+    vector_push_back(outgoing, '_');
+    vector_push_back(outgoing, tail);
+
+    tail++;
+
+    if(tail > 'H')
+    {
+      tail = 'A';
+    }
+
+    SeStreamWrite(stream, outgoing);
 
     while(1)
     {
@@ -32,29 +43,8 @@ int main()
         break;
       }
 
-      received = 1;
       vector_push_back(incoming, '\0');
       printf("Received: %s\n", &vector_at(incoming, 0));
-    }
-
-    if(received)
-    {
-      vector_clear(outgoing);
-      vector_push_back(outgoing, 'H');
-      vector_push_back(outgoing, 'E');
-      vector_push_back(outgoing, 'L');
-      vector_push_back(outgoing, 'O');
-      vector_push_back(outgoing, '_');
-      vector_push_back(outgoing, tail);
-
-      tail++;
-
-      if(tail > 'H')
-      {
-        tail = 'A';
-      }
-
-      SeStreamWrite(stream, outgoing);
     }
 
     count++;
@@ -64,7 +54,7 @@ int main()
       //break;
     }
 
-    usleep(10000);
+    usleep(100000);
   }
 
   SeStreamClose(stream);
