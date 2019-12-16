@@ -14,6 +14,8 @@
 #define SE_TYPE_REPEAT '.'
 #define SE_TYPE_CONFIRM '>'
 #define SE_TYPE_INVALID '?'
+#define SE_TYPE_PING '('
+#define SE_TYPE_PONG ')'
 
 void _SeDebugVector(vector(unsigned char) in)
 {
@@ -35,7 +37,7 @@ struct SeFrame
   unsigned char type;
   vector(unsigned char) payload;
   ref(sstream) hash;
-  time_t timestamp;
+  size_t timeout;
 };
 
 void _SeFrameDump(ref(SeFrame) ctx)
@@ -131,6 +133,8 @@ struct SeStream
   vector(ref(SeFrame)) framesIn;;
   vector(unsigned char) outgoing;
   vector(unsigned char) incoming;
+  time_t nextPing;
+  size_t pingId;
 };
 
 void _SeStreamAddFrame(ref(SeStream) ctx, ref(SeFrame) frame)
@@ -342,6 +346,17 @@ void _SeStreamProcessConfirmation(ref(SeStream) ctx, ref(SeFrame) frame)
     {
       SeFrameDestroy(curr);
       vector_erase(_(ctx).frames, fi, 1);
+
+      /*
+       * No need to start ping/pong if stream is going smoothly and
+       * first frame has been received.
+       */
+      if(fi == 0)
+      {
+        //printf("Delaying ping\n");
+        _(ctx).nextPing = time(NULL) + SE_PING_TIMEOUT;
+      }
+
       fi--;
     }
   }
@@ -388,6 +403,37 @@ void _SeStreamFlush(ref(SeStream) ctx)
   }
 }
 
+void _SeStreamReplyPong(ref(SeStream) ctx, ref(SeFrame) frame)
+{
+  //printf("Received ping!\n");
+  _(frame).type = SE_TYPE_PONG;
+  _SeStreamAddFrame(ctx, frame);
+}
+
+void _SeStreamHandlePong(ref(SeStream) ctx, ref(SeFrame) frame)
+{
+  size_t fi = 0;
+  ref(SeFrame) cf = NULL;
+
+  if(_(frame).id != _(ctx).pingId)
+  {
+    return;
+  }
+
+  printf("Received Pong\n");
+  _(ctx).pingId++;
+
+  for(fi = 0; fi < vector_size(_(ctx).frames); fi++)
+  {
+    cf = vector_at(_(ctx).frames, fi);
+
+    if(_(cf).timeout > 0)
+    {
+      _(cf).timeout--;
+    }
+  }
+}
+
 void _SeStreamProcessIncoming(ref(SeStream) ctx)
 {
   vector(unsigned char) buffer = NULL;
@@ -425,6 +471,14 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
     {
       _SeStreamProcessConfirmation(ctx, frame);
     }
+    else if(_(frame).type == SE_TYPE_PING)
+    {
+      _SeStreamReplyPong(ctx, frame);
+    }
+    else if(_(frame).type == SE_TYPE_PONG)
+    {
+      _SeStreamHandlePong(ctx, frame);
+    }
     else
     {
       printf("Warning: Unknown frame type\n");
@@ -439,24 +493,46 @@ void _SeStreamProcessOutgoing(ref(SeStream) ctx)
 {
   ref(SeFrame) frame = NULL;
   size_t fi = 0;
-  time_t now = 0;
-
-  now = time(NULL);
 
   for(fi = 0; fi < vector_size(_(ctx).frames); fi++)
   {
     frame = vector_at(_(ctx).frames, fi);
 
-    if(_(frame).timestamp <= now)
+    if(_(frame).timeout < 1)
     {
-      _(frame).timestamp = now + SE_PACKET_TIMEOUT;
+      _(frame).timeout = SE_PACKET_TIMEOUT;
       _SeStreamAddFrame(ctx, frame);
     }
   }
 }
 
+void _SeStreamProcessPing(ref(SeStream) ctx)
+{
+  time_t now = 0;
+  ref(SeFrame) frame = NULL;
+
+  now = time(NULL);
+
+  if(now < _(ctx).nextPing)
+  {
+    return;
+  }
+
+  //printf("Ping!\n");
+  _(ctx).nextPing = now + SE_PING_TIMEOUT;
+
+  frame = SeFrameCreate();
+  //vector_insert(_(frame).payload, 0, buffer, 0, vector_size(buffer));
+  //SeBase64Encode(buffer, _(frame).payload);
+  _(frame).id = _(ctx).pingId;
+  _(frame).type = SE_TYPE_PING;
+  _(frame).timeout = 0;
+  vector_push_back(_(ctx).frames, frame);
+}
+
 void _SeStreamProcess(ref(SeStream) ctx)
 {
+  _SeStreamProcessPing(ctx);
   _SeStreamProcessIncoming(ctx);
   _SeStreamProcessOutgoing(ctx);
   _SeStreamFlush(ctx);
@@ -472,6 +548,7 @@ ref(SeStream) SeStreamOpen(char *path)
   _(rtn).framesIn = vector_new(ref(SeFrame));
   _(rtn).outgoing = vector_new(unsigned char);
   _(rtn).incoming = vector_new(unsigned char);
+  _(rtn).nextPing = time(NULL) + SE_PING_TIMEOUT;
 
   return rtn;
 }
@@ -533,7 +610,7 @@ void SeStreamWrite(ref(SeStream) ctx, vector(unsigned char) buffer)
   SeBase64Encode(buffer, _(frame).payload);
   _(frame).id = _(ctx).outId++;
   _(frame).type = SE_TYPE_INITIAL;
-  _(frame).timestamp = time(NULL);
+  _(frame).timeout = 0;
   vector_push_back(_(ctx).frames, frame);
 
   _SeStreamProcess(ctx);

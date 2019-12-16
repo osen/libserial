@@ -6,6 +6,8 @@ void SeBase64Encode(vector(unsigned char) in, vector(unsigned char) out)
   unsigned char *tmp = NULL;
   size_t len = 0;
 
+  if(vector_size(in) < 1) return;
+
   tmp = base64_encode(&vector_at(in, 0), vector_size(in), &len);
   vector_resize(out, len);
   memcpy(&vector_at(out, 0), tmp, len);
@@ -16,6 +18,8 @@ void SeBase64Decode(vector(unsigned char) in, vector(unsigned char) out)
 {
   unsigned char *tmp = NULL;
   size_t len = 0;
+
+  if(vector_size(in) < 1) return;
 
   tmp = base64_decode(&vector_at(in, 0), vector_size(in), &len);
   vector_resize(out, len);

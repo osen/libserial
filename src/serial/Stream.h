@@ -1,6 +1,7 @@
 #include "stent.h"
 
-#define SE_PACKET_TIMEOUT 2
+#define SE_PING_TIMEOUT 2
+#define SE_PACKET_TIMEOUT 1
 
 struct SeStream;
 
