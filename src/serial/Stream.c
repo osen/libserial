@@ -98,6 +98,7 @@ struct SeStream
   size_t inId;
   ref(SeDevice) dev;
   vector(ref(SeFrame)) frames;
+  vector(ref(SeFrame)) framesIn;;
   vector(unsigned char) outgoing;
   vector(unsigned char) incoming;
 };
@@ -316,6 +317,36 @@ void _SeStreamProcessConfirmation(ref(SeStream) ctx, ref(SeFrame) frame)
   }
 }
 
+void _SeStreamProcessFrameIn(ref(SeStream) ctx, ref(SeFrame) frame)
+{
+  ref(SeFrame) response = NULL;
+  size_t fi = 0;
+  ref(SeFrame) curr = NULL;
+
+  printf("id: %i ", (int)_(frame).id);
+  _SeDebugVector(_(frame).payload);
+
+  response = SeFrameCreate();
+  _(response).id = _(frame).id;
+  _(response).type = SE_TYPE_CONFIRM;
+  _SeStreamAddFrame(ctx, response);
+  SeFrameDestroy(response);
+
+  for(fi = 0; fi < vector_size(_(ctx).frames); fi++)
+  {
+    curr = vector_at(_(ctx).frames, fi);
+
+    if(_(curr).id == _(frame).id)
+    {
+      SeFrameDestroy(frame);
+
+      return;
+    }
+  }
+
+  vector_push_back(_(ctx).frames, frame);
+}
+
 void _SeStreamFlush(ref(SeStream) ctx)
 {
   while(SeDeviceReady(_(ctx).dev, SE_MODE_W, 0) &&
@@ -330,7 +361,6 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
   vector(unsigned char) buffer = NULL;
   size_t bi = 0;
   ref(SeFrame) frame = NULL;
-  ref(SeFrame) response = NULL;
 
   buffer = vector_new(unsigned char);
 
@@ -355,14 +385,8 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
     else if(_(frame).type == SE_TYPE_INITIAL ||
       _(frame).type == SE_TYPE_REPEAT)
     {
-      printf("id: %i ", (int)_(frame).id);
-      _SeDebugVector(_(frame).payload);
-
-      response = SeFrameCreate();
-      _(response).id = _(frame).id;
-      _(response).type = SE_TYPE_CONFIRM;
-      _SeStreamAddFrame(ctx, response);
-      SeFrameDestroy(response);
+      _SeStreamProcessFrameIn(ctx, frame);
+      frame = SeFrameCreate();
     }
     else if(_(frame).type == SE_TYPE_CONFIRM)
     {
@@ -412,6 +436,7 @@ ref(SeStream) SeStreamOpen(char *path)
   rtn = allocate(SeStream);
   _(rtn).dev = SeDeviceOpen(path);
   _(rtn).frames = vector_new(ref(SeFrame));
+  _(rtn).framesIn = vector_new(ref(SeFrame));
   _(rtn).outgoing = vector_new(unsigned char);
   _(rtn).incoming = vector_new(unsigned char);
 
@@ -446,7 +471,13 @@ void SeStreamClose(ref(SeStream) ctx)
     SeFrameDestroy(vector_at(_(ctx).frames, fi));
   }
 
+  for(fi = 0; fi < vector_size(_(ctx).framesIn); fi++)
+  {
+    SeFrameDestroy(vector_at(_(ctx).framesIn, fi));
+  }
+
   vector_delete(_(ctx).frames);
+  vector_delete(_(ctx).framesIn);
   vector_delete(_(ctx).outgoing);
   vector_delete(_(ctx).incoming);
   release(_(ctx).dev);
