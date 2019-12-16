@@ -37,6 +37,35 @@ struct SeFrame
   time_t timestamp;
 };
 
+void _SeFrameDump(ref(SeFrame) ctx)
+{
+  printf("Frame\n");
+  printf("  id: %i\n", (int)_(ctx).id);
+  printf("  type: ");
+
+  if(_(ctx).type == SE_TYPE_INITIAL)
+  {
+    printf("SE_TYPE_INITIAL");
+  }
+  else if(_(ctx).type == SE_TYPE_REPEAT)
+  {
+    printf("SE_TYPE_REPEAT");
+  }
+  else if(_(ctx).type == SE_TYPE_INVALID)
+  {
+    printf("SE_TYPE_INVALID");
+  }
+  else
+  {
+    printf("UNKNOWN");
+  }
+
+  printf("\n");
+  vector_push_back(_(ctx).payload, '\n');
+  printf("  payload: [%s]\n", &vector_at(_(ctx).payload, 0));
+  printf("  hash: %s\n", sstream_cstr(_(ctx).hash));
+}
+
 ref(SeFrame) SeFrameCreate()
 {
   ref(SeFrame) rtn = NULL;
@@ -383,6 +412,7 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
     if(_(frame).type == SE_TYPE_INVALID)
     {
       printf("Invalid frame\n");
+      _SeFrameDump(frame);
     }
     else if(_(frame).type == SE_TYPE_INITIAL ||
       _(frame).type == SE_TYPE_REPEAT)
