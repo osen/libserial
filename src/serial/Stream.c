@@ -50,11 +50,37 @@ ref(SeFrame) SeFrameCreate()
 
 void _SeFrameUpdateHash(ref(SeFrame) ctx)
 {
+  ref(sstream) id = NULL;
   ref(sstream) hash = NULL;
+  vector(unsigned char) tmp = NULL;
+  size_t ci = 0;
 
-  hash = SeHash(_(ctx).payload);
+  id = sstream_new();
+  sstream_append_int(id, _(ctx).id);
+  tmp = vector_new(unsigned char);
+
+  /*
+   * Add id number string
+   */
+  for(ci = 0; ci < sstream_length(id); ci++)
+  {
+    vector_push_back(tmp, sstream_at(id, ci));
+  }
+
+  /*
+   * Add type character
+   */
+  vector_push_back(tmp, _(ctx).type);
+
+  /*
+   * Add payload
+   */
+  vector_insert(tmp, 1, _(ctx).payload, 0, vector_size(_(ctx).payload));
+  hash = SeHash(tmp);
   sstream_str(_(ctx).hash, hash);
 
+  sstream_delete(id);
+  vector_delete(tmp);
   sstream_delete(hash);
 }
 

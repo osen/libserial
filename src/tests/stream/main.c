@@ -26,16 +26,17 @@ int main()
 
     sleep(1);
 
-    SeStreamRead(stream, incoming);
-
-    if(vector_size(incoming) > 0)
+    while(1)
     {
+      SeStreamRead(stream, incoming);
+
+      if(vector_size(incoming) < 1)
+      {
+        break;
+      }
+
       vector_push_back(incoming, '\0');
       printf("Received: %s\n", &vector_at(incoming, 0));
-    }
-    else
-    {
-      //printf("No bytes received\n");
     }
 
     count++;
