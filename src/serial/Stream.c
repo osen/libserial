@@ -323,8 +323,10 @@ void _SeStreamProcessFrameIn(ref(SeStream) ctx, ref(SeFrame) frame)
   size_t fi = 0;
   ref(SeFrame) curr = NULL;
 
+/*
   printf("id: %i ", (int)_(frame).id);
   _SeDebugVector(_(frame).payload);
+*/
 
   response = SeFrameCreate();
   _(response).id = _(frame).id;
@@ -332,9 +334,9 @@ void _SeStreamProcessFrameIn(ref(SeStream) ctx, ref(SeFrame) frame)
   _SeStreamAddFrame(ctx, response);
   SeFrameDestroy(response);
 
-  for(fi = 0; fi < vector_size(_(ctx).frames); fi++)
+  for(fi = 0; fi < vector_size(_(ctx).framesIn); fi++)
   {
-    curr = vector_at(_(ctx).frames, fi);
+    curr = vector_at(_(ctx).framesIn, fi);
 
     if(_(curr).id == _(frame).id)
     {
@@ -344,7 +346,7 @@ void _SeStreamProcessFrameIn(ref(SeStream) ctx, ref(SeFrame) frame)
     }
   }
 
-  vector_push_back(_(ctx).frames, frame);
+  vector_push_back(_(ctx).framesIn, frame);
 }
 
 void _SeStreamFlush(ref(SeStream) ctx)
@@ -445,7 +447,31 @@ ref(SeStream) SeStreamOpen(char *path)
 
 void SeStreamRead(ref(SeStream) ctx, vector(unsigned char) buffer)
 {
+  size_t fi = 0;
+  ref(SeFrame) curr = NULL;
+  int found = 0;
+
+  vector_clear(buffer);
   _SeStreamProcess(ctx);
+
+  for(fi = 0; fi < vector_size(_(ctx).framesIn); fi++)
+  {
+    curr = vector_at(_(ctx).framesIn, fi);
+
+    if(_(curr).id == _(ctx).inId)
+    {
+      found = 1;
+      vector_insert(buffer, 0, _(curr).payload, 0, vector_size(_(curr).payload));
+      SeFrameDestroy(curr);
+      vector_erase(_(ctx).framesIn, fi, 1);
+      fi--;
+    }
+  }
+
+  if(found)
+  {
+    _(ctx).inId++;
+  }
 }
 
 void SeStreamWrite(ref(SeStream) ctx, vector(unsigned char) buffer)
