@@ -11,6 +11,7 @@
 
 #define SE_TYPE_INITIAL '!'
 #define SE_TYPE_REPEAT '.'
+#define SE_TYPE_CONFIRM '>'
 #define SE_TYPE_INVALID '?'
 
 void _SeDebugVector(vector(unsigned char) in)
@@ -297,6 +298,24 @@ end:
   return 1;
 }
 
+void _SeStreamProcessConfirmation(ref(SeStream) ctx, ref(SeFrame) frame)
+{
+  size_t fi = 0;
+  ref(SeFrame) curr = NULL;
+
+  for(fi = 0; fi < vector_size(_(ctx).frames); fi++)
+  {
+    curr = vector_at(_(ctx).frames, fi);
+
+    if(_(curr).id == _(frame).id)
+    {
+      SeFrameDestroy(curr);
+      vector_erase(_(ctx).frames, fi, 1);
+      fi--;
+    }
+  }
+}
+
 void _SeStreamFlush(ref(SeStream) ctx)
 {
   while(SeDeviceReady(_(ctx).dev, SE_MODE_W, 0) &&
@@ -311,6 +330,7 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
   vector(unsigned char) buffer = NULL;
   size_t bi = 0;
   ref(SeFrame) frame = NULL;
+  ref(SeFrame) response = NULL;
 
   buffer = vector_new(unsigned char);
 
@@ -337,6 +357,16 @@ void _SeStreamProcessIncoming(ref(SeStream) ctx)
     {
       printf("id: %i ", (int)_(frame).id);
       _SeDebugVector(_(frame).payload);
+
+      response = SeFrameCreate();
+      _(response).id = _(frame).id;
+      _(response).type = SE_TYPE_CONFIRM;
+      _SeStreamAddFrame(ctx, response);
+      SeFrameDestroy(response);
+    }
+    else if(_(frame).type == SE_TYPE_CONFIRM)
+    {
+      _SeStreamProcessConfirmation(ctx, frame);
     }
     else
     {
