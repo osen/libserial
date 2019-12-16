@@ -1,6 +1,7 @@
 #include "Stream.h"
 #include "Device.h"
 #include "Hash.h"
+#include "Base64.h"
 
 #include <time.h>
 #include <stdio.h>
@@ -61,7 +62,7 @@ void _SeFrameDump(ref(SeFrame) ctx)
   }
 
   printf("\n");
-  vector_push_back(_(ctx).payload, '\n');
+  vector_push_back(_(ctx).payload, '\0');
   printf("  payload: [%s]\n", &vector_at(_(ctx).payload, 0));
   printf("  hash: %s\n", sstream_cstr(_(ctx).hash));
 }
@@ -491,7 +492,8 @@ void SeStreamRead(ref(SeStream) ctx, vector(unsigned char) buffer)
     if(_(curr).id == _(ctx).inId)
     {
       found = 1;
-      vector_insert(buffer, 0, _(curr).payload, 0, vector_size(_(curr).payload));
+      //vector_insert(buffer, 0, _(curr).payload, 0, vector_size(_(curr).payload));
+      SeBase64Decode(_(curr).payload, buffer);
       SeFrameDestroy(curr);
       vector_erase(_(ctx).framesIn, fi, 1);
       fi--;
@@ -527,7 +529,8 @@ void SeStreamWrite(ref(SeStream) ctx, vector(unsigned char) buffer)
   ref(SeFrame) frame = NULL;
 
   frame = SeFrameCreate();
-  vector_insert(_(frame).payload, 0, buffer, 0, vector_size(buffer));
+  //vector_insert(_(frame).payload, 0, buffer, 0, vector_size(buffer));
+  SeBase64Encode(buffer, _(frame).payload);
   _(frame).id = _(ctx).outId++;
   _(frame).type = SE_TYPE_INITIAL;
   _(frame).timestamp = time(NULL);
