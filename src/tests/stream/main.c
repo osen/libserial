@@ -34,8 +34,6 @@ int main()
 
     SeStreamWrite(stream, outgoing);
 
-    sleep(1);
-
     while(1)
     {
       SeStreamRead(stream, incoming);
@@ -51,10 +49,12 @@ int main()
 
     count++;
 
-    if(count > 15)
+    if(count > 200)
     {
       break;
     }
+
+    usleep(100000);
   }
 
   SeStreamClose(stream);
